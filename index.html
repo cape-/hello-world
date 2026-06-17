@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>El Rescate de Manchitas</title>
+<style>
+  :root{
+    --bezel:#f3a8c4;       /* marco rosado del cuaderno */
+    --screen:#fdf8ef;      /* color papel */
+    --bar:#2b2b3a;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; }
+  body{
+    background:#3a2d2a;
+    font-family:"Comic Sans MS","Comic Sans",system-ui,sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    min-height:100%; padding:10px;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+
+  /* La "computadora" dibujada */
+  .device{
+    background:var(--bezel);
+    border-radius:26px;
+    padding:14px;
+    box-shadow:0 12px 30px rgba(0,0,0,.45), inset 0 0 0 4px rgba(255,255,255,.25);
+    width:min(96vw, 920px);
+  }
+  .screen{
+    background:var(--screen);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow: inset 0 0 0 3px #d9cdb6;
+    display:flex; flex-direction:column;
+  }
+
+  /* Barra de estado superior */
+  .statusbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 14px;
+    font-weight:bold;
+  }
+  .clock{
+    font-size:clamp(22px,5vw,40px);
+    letter-spacing:2px;
+    color:#34a0d8;
+    text-shadow:1px 1px 0 #fff;
+  }
+  .clock .c2{color:#f0a91e;}
+  .clock .c3{color:#9bcf3a;}
+  .battery{ display:flex; align-items:center; gap:6px; color:#444; font-size:clamp(13px,3vw,18px);}
+  .batt-icon{
+    width:34px; height:18px; border:2px solid #444; border-radius:4px;
+    position:relative; padding:2px;
+  }
+  .batt-icon::after{
+    content:""; position:absolute; right:-5px; top:4px; width:3px; height:8px;
+    background:#444; border-radius:0 2px 2px 0;
+  }
+  .batt-fill{ height:100%; background:#9bcf3a; border-radius:2px; transition:width .5s; }
+
+  /* Lienzo del juego */
+  .stage{ position:relative; }
+  canvas{ display:block; width:100%; height:auto; background:linear-gradient(#bfeaff,#eaf7d6); }
+
+  /* Mensajes encima del juego */
+  .overlay{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:18px; pointer-events:none;
+  }
+  .card{
+    background:rgba(255,255,255,.92); border:4px solid #f0a91e; border-radius:18px;
+    padding:18px 22px; max-width:80%; pointer-events:auto;
+    box-shadow:0 8px 0 rgba(0,0,0,.15);
+  }
+  .card h1{ margin:.1em 0; color:#e0552b; font-size:clamp(20px,5vw,34px);}
+  .card p{ margin:.4em 0; color:#444; font-size:clamp(13px,3.4vw,18px); line-height:1.35;}
+  .card button{
+    margin-top:10px; font-family:inherit; font-weight:bold; cursor:pointer;
+    font-size:clamp(15px,4vw,20px); color:#fff; background:#9bcf3a;
+    border:none; border-radius:14px; padding:10px 22px; box-shadow:0 5px 0 #6fa017;
+  }
+  .card button:active{ transform:translateY(3px); box-shadow:0 2px 0 #6fa017; }
+  .hidden{ display:none !important; }
+
+  /* Botones de control (los 6 que dibujó) */
+  .controls{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    padding:12px 8px 14px;
+    flex-wrap:wrap;
+  }
+  .btn{
+    width:clamp(46px,12vw,64px); height:clamp(46px,12vw,64px);
+    border-radius:50%; border:3px solid #6a6a6a; background:#fffdf7;
+    color:#3a3a3a; font-size:clamp(20px,6vw,28px);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,.2);
+    transition:transform .05s;
+  }
+  .btn:active,.btn.down{ transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.2); background:#fde7b8; }
+  .btn.grab{ border-color:#e08a2b; }
+  .btn.key{ border-color:#3aa0d8; }
+  .gap{ width:14px; }
+  .hint{ text-align:center; font-size:12px; color:#7a6f5c; padding:0 10px 10px; }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+      <!-- Barra superior: hora y batería, como en el dibujo -->
+      <div class="statusbar">
+        <div style="width:60px"></div>
+        <div class="clock" id="clock"><span class="c1">5</span>:<span class="c2">3</span><span class="c3">5</span></div>
+        <div class="battery">
+          <span id="battTxt">65%</span>
+          <div class="batt-icon"><div class="batt-fill" id="battFill" style="width:65%"></div></div>
+        </div>
+      </div>
+
+      <!-- Juego -->
+      <div class="stage">
+        <canvas id="game" width="800" height="420"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="card" id="card">
+            <h1>El Rescate de Manchitas</h1>
+            <p>Eres un niño valiente. ¡Quita las llaves al maestro dormido y libera a tu perrito Manchitas de la jaula!</p>
+            <p>Muévete con ◀ ▶, salta con ▲, agáchate con ▼ para esconderte, toma las llaves con ✋ y abre la jaula con 🔓.</p>
+            <button id="startBtn">¡Jugar!</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Los seis botones que dibujó -->
+      <div class="controls" id="controls">
+        <div class="btn" data-act="back"   aria-label="atrás">◀</div>
+        <div class="btn" data-act="fwd"    aria-label="adelante">▶</div>
+        <div class="gap"></div>
+        <div class="btn" data-act="jump"   aria-label="saltar">▲</div>
+        <div class="btn" data-act="down"   aria-label="agacharse">▼</div>
+        <div class="gap"></div>
+        <div class="btn grab" data-act="grab" aria-label="agarrar">✋</div>
+        <div class="btn key"  data-act="free" aria-label="liberar">🔓</div>
+      </div>
+      <div class="hint">Teclado: ← → mover · ↑ saltar · ↓ agacharse · A agarrar · L liberar</div>
+    </div>
+  </div>
+
+<script>
+/* ===========================================================
+   EL RESCATE DE MANCHITAS
+   Un juego hecho a partir del dibujo de una niña.
+   - El niño debe quitarle las llaves al maestro dormido (✋)
+   - y abrir la jaula para liberar a Manchitas (🔓).
+   - Hay varios niveles. El maestro a veces despierta:
+     ¡agáchate (▼) para esconderte y que no te vea!
+   =========================================================== */
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const GROUND = H - 60;
+
+// ---------- Reloj y batería de la barra superior ----------
+function updateClock(){
+  const d = new Date();
+  let h = d.getHours() % 12; if(h===0) h=12;
+  const m = String(d.getMinutes()).padStart(2,'0');
+  const c = document.getElementById('clock');
+  c.innerHTML = `<span class="c1">${h}</span>:<span class="c2">${m[0]}</span><span class="c3">${m[1]}</span>`;
+}
+updateClock(); setInterval(updateClock, 1000);
+
+if(navigator.getBattery){
+  navigator.getBattery().then(b=>{
+    const show=()=>{
+      const pct=Math.round(b.level*100);
+      document.getElementById('battTxt').textContent=pct+'%';
+      const f=document.getElementById('battFill');
+      f.style.width=pct+'%';
+      f.style.background = pct>20 ? '#9bcf3a' : '#e0552b';
+    };
+    show(); b.addEventListener('levelchange',show);
+  }).catch(()=>{});
+}
+
+// ---------- Definición de niveles ----------
+// teacherX: dónde se sienta el maestro dormido
+// cageX: dónde está la jaula de Manchitas
+// gaps: hoyos en el suelo que hay que saltar [{x,w}]
+// wakeChance: probabilidad de que el maestro despierte (0 = nunca)
+const LEVELS = [
+  { teacherX:380, cageX:680, gaps:[],                       wakeChance:0,    msg:"Nivel 1: El maestro duerme profundamente. ¡Toma las llaves y libera a Manchitas!" },
+  { teacherX:400, cageX:710, gaps:[],                       wakeChance:0.004, msg:"Nivel 2: El maestro a veces abre los ojos. ¡Agáchate (▼) para esconderte!" },
+  { teacherX:430, cageX:720, gaps:[{x:250,w:60}],           wakeChance:0.006, msg:"Nivel 3: ¡Cuidado con el hoyo! Salta (▲) para cruzar." },
+  { teacherX:300, cageX:730, gaps:[{x:480,w:70}],           wakeChance:0.009, msg:"Nivel 4: La jaula está lejos. ¡Sé rápido y sigiloso!" },
+  { teacherX:420, cageX:740, gaps:[{x:200,w:55},{x:560,w:55}], wakeChance:0.012, msg:"Nivel 5: ¡El reto final! Dos hoyos y un maestro muy alerta." },
+];
+
+// ---------- Estado del juego ----------
+const game = {
+  level:0,
+  state:'menu',     // menu | playing | win | levelclear | caught
+  hasKeys:false,
+  freed:false,
+  wakeTimer:0,
+};
+
+const boy = {
+  x:60, y:GROUND, vx:0, vy:0, w:34, h:54,
+  onGround:true, crouch:false, dir:1, walk:0,
+};
+
+let teacher = { x:380, awake:false, blink:0 };
+let level = LEVELS[0];
+
+function loadLevel(i){
+  game.level = i;
+  level = LEVELS[i];
+  game.hasKeys = false;
+  game.freed = false;
+  game.wakeTimer = 0;
+  boy.x = 60; boy.y = GROUND; boy.vx=0; boy.vy=0; boy.onGround=true; boy.crouch=false; boy.dir=1;
+  teacher = { x:level.teacherX, awake:false, blink:0 };
+}
+
+// ---------- Controles ----------
+const keys = { fwd:false, back:false, jump:false, down:false };
+function press(act,on){
+  if(act==='fwd') keys.fwd=on;
+  else if(act==='back') keys.back=on;
+  else if(act==='jump'){ keys.jump=on; if(on) tryJump(); }
+  else if(act==='down') keys.down=on;
+  else if(on && act==='grab') tryGrab();
+  else if(on && act==='free') tryFree();
+}
+
+document.querySelectorAll('.btn').forEach(b=>{
+  const act=b.dataset.act;
+  const dn=e=>{ e.preventDefault(); b.classList.add('down'); press(act,true); };
+  const up=e=>{ e.preventDefault(); b.classList.remove('down'); press(act,false); };
+  b.addEventListener('touchstart',dn,{passive:false});
+  b.addEventListener('touchend',up,{passive:false});
+  b.addEventListener('touchcancel',up,{passive:false});
+  b.addEventListener('mousedown',dn);
+  b.addEventListener('mouseup',up);
+  b.addEventListener('mouseleave',up);
+});
+
+document.addEventListener('keydown',e=>{
+  if(e.repeat) return;
+  if(e.key==='ArrowRight') press('fwd',true);
+  else if(e.key==='ArrowLeft') press('back',true);
+  else if(e.key==='ArrowUp'||e.key===' ') press('jump',true);
+  else if(e.key==='ArrowDown') press('down',true);
+  else if(e.key.toLowerCase()==='a') press('grab',true);
+  else if(e.key.toLowerCase()==='l') press('free',true);
+});
+document.addEventListener('keyup',e=>{
+  if(e.key==='ArrowRight') press('fwd',false);
+  else if(e.key==='ArrowLeft') press('back',false);
+  else if(e.key==='ArrowUp'||e.key===' ') press('jump',false);
+  else if(e.key==='ArrowDown') press('down',false);
+});
+
+function tryJump(){
+  if(game.state==='playing' && boy.onGround && !boy.crouch){
+    boy.vy = -11.5; boy.onGround=false;
+  }
+}
+function tryGrab(){
+  if(game.state!=='playing' || game.hasKeys) return;
+  if(Math.abs((boy.x+boy.w/2)-(teacher.x+30)) < 60){
+    if(teacher.awake){ caught(); return; }   // ¡te ve robando!
+    game.hasKeys = true;
+    flash("¡Tienes las llaves! 🔑");
+  }
+}
+function tryFree(){
+  if(game.state!=='playing' || game.freed) return;
+  const cageCenter = level.cageX + 35;
+  if(!game.hasKeys){ flash("¡Primero necesitas las llaves!"); return; }
+  if(Math.abs((boy.x+boy.w/2)-cageCenter) < 70){
+    game.freed = true;
+    flash("¡Manchitas es libre! 🐶❤️");
+    setTimeout(()=> levelComplete(), 1400);
+  }
+}
+
+let flashMsg=null, flashTime=0;
+function flash(t){ flashMsg=t; flashTime=120; }
+
+function caught(){
+  game.state='caught';
+  showCard("¡Te atraparon! 😮", "El maestro te vio. Recuerda agacharte (▼) cuando despierte.", "Reintentar", ()=>{ loadLevel(game.level); start(); });
+}
+function levelComplete(){
+  if(game.level < LEVELS.length-1){
+    game.state='levelclear';
+    showCard("¡Nivel superado! ⭐", "Manchitas mueve la colita feliz. ¿Listo para el siguiente nivel?", "Siguiente nivel", ()=>{ loadLevel(game.level+1); flash(LEVELS[game.level].msg); start(); });
+  } else {
+    game.state='win';
+    showCard("¡GANASTE! 🎉🐶", "Liberaste a Manchitas en todos los niveles. ¡El niño y su fiel amigo viven felices para siempre!", "Jugar otra vez", ()=>{ loadLevel(0); flash(LEVELS[0].msg); start(); });
+  }
+}
+
+// ---------- Overlay / tarjetas ----------
+const overlay=document.getElementById('overlay');
+const card=document.getElementById('card');
+function showCard(title,text,btn,cb){
+  overlay.classList.remove('hidden');
+  card.innerHTML = `<h1>${title}</h1><p>${text}</p><button>${btn}</button>`;
+  card.querySelector('button').onclick = ()=>{ overlay.classList.add('hidden'); cb(); };
+}
+function start(){ overlay.classList.add('hidden'); game.state='playing'; }
+document.getElementById('startBtn').onclick = ()=>{ loadLevel(0); flash(LEVELS[0].msg); start(); };
+
+// ---------- Física y lógica ----------
+function inGap(px){
+  for(const g of level.gaps){ if(px > g.x && px < g.x+g.w) return true; }
+  return false;
+}
+
+function update(){
+  if(game.state!=='playing') return;
+
+  // El maestro despierta/duerme
+  if(level.wakeChance>0){
+    if(teacher.awake){
+      game.wakeTimer--;
+      if(game.wakeTimer<=0) teacher.awake=false;
+    } else if(Math.random() < level.wakeChance){
+      teacher.awake=true; game.wakeTimer=80 + Math.random()*60;
+    }
+  }
+  teacher.blink = (teacher.blink+1)%200;
+
+  // Movimiento
+  boy.crouch = keys.down && boy.onGround;
+  const speed = boy.crouch ? 1.4 : 3.0;
+  boy.vx = 0;
+  if(keys.fwd){ boy.vx = speed; boy.dir=1; }
+  if(keys.back){ boy.vx = -speed; boy.dir=-1; }
+  if(boy.vx!==0) boy.walk += 0.25; else boy.walk=0;
+
+  boy.x += boy.vx;
+  boy.x = Math.max(0, Math.min(W-boy.w, boy.x));
+
+  // Gravedad
+  boy.vy += 0.6;
+  boy.y += boy.vy;
+
+  const feet = boy.x + boy.w/2;
+  if(boy.y >= GROUND){
+    if(inGap(feet) && boy.vy>0){
+      // cae en el hoyo
+      if(boy.y > H+40){
+        game.state='caught';
+        showCard("¡Ups! 🕳️","Caíste en el hoyo. Salta (▲) para cruzarlo.","Reintentar",()=>{ loadLevel(game.level); start(); });
+      }
+    } else {
+      boy.y = GROUND; boy.vy=0; boy.onGround=true;
+    }
+  } else {
+    boy.onGround=false;
+  }
+
+  // Si el maestro está despierto y el niño se mueve sin agacharse cerca de él -> te ve
+  if(teacher.awake && !boy.crouch && Math.abs(boy.vx)>0){
+    if(Math.abs((boy.x+boy.w/2)-(teacher.x+30)) < 150){
+      caught();
+    }
+  }
+
+  if(flashTime>0) flashTime--;
+}
+
+// ---------- Dibujo ----------
+function drawGround(){
+  // cielo ya está por css; suelo
+  ctx.fillStyle='#7ec850';
+  ctx.fillRect(0,GROUND+18,W,H-GROUND);
+  ctx.fillStyle='#caa15a';
+  ctx.fillRect(0,GROUND+34,W,H);
+  // hoyos
+  ctx.fillStyle='#bfeaff';
+  for(const g of level.gaps){
+    ctx.fillRect(g.x, GROUND+18, g.w, H);
+  }
+  // nubes
+  ctx.fillStyle='rgba(255,255,255,.85)';
+  cloud(120,60); cloud(600,40); cloud(420,90);
+}
+function cloud(x,y){
+  ctx.beginPath();
+  ctx.arc(x,y,18,0,7); ctx.arc(x+22,y+4,22,0,7); ctx.arc(x+46,y,16,0,7);
+  ctx.fill();
+}
+
+function drawBoy(){
+  const x=boy.x, y=boy.y;
+  const ch = boy.crouch ? 0.7 : 1;       // factor de altura al agacharse
+  const h = boy.h*ch;
+  const cx = x + boy.w/2;
+  const top = y - h;
+  ctx.save();
+  // piernas (teal, como el dibujo)
+  ctx.fillStyle='#1fa3a3';
+  const swing = Math.sin(boy.walk)*5;
+  ctx.fillRect(cx-9, y-18, 7, 18+ (boy.onGround? swing:0));
+  ctx.fillRect(cx+2, y-18, 7, 18- (boy.onGround? swing:0));
+  // zapatos
+  ctx.fillStyle='#7a4a1e';
+  ctx.fillRect(cx-11, y-3, 10,5); ctx.fillRect(cx+1, y-3, 10,5);
+  // cuerpo (camisa naranja)
+  ctx.fillStyle='#e0552b';
+  ctx.fillRect(cx-12, top+16*ch, 24, h-34*ch+ (boy.crouch?6:0));
+  // brazos
+  ctx.fillStyle='#e0552b';
+  ctx.fillRect(cx + (boy.dir>0?10:-14), top+20*ch, 5, 16);
+  // cabeza
+  ctx.fillStyle='#f2c79a';
+  ctx.beginPath(); ctx.arc(cx, top+10*ch, 12, 0, 7); ctx.fill();
+  // pelo
+  ctx.fillStyle='#caa15a';
+  ctx.beginPath(); ctx.arc(cx, top+4*ch, 12, Math.PI, 2*Math.PI); ctx.fill();
+  // ojo mirando hacia dir
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.arc(cx + boy.dir*4, top+10*ch, 1.8, 0, 7); ctx.fill();
+  // llaves en la mano si las tiene
+  if(game.hasKeys){
+    ctx.fillStyle='#f0c400';
+    const kx = cx + (boy.dir>0?16:-22);
+    ctx.beginPath(); ctx.arc(kx, top+24*ch, 4,0,7); ctx.fill();
+    ctx.fillRect(kx-1, top+24*ch, 2, 9);
+  }
+  // señal de "agachado/escondido"
+  if(boy.crouch){
+    ctx.fillStyle='rgba(60,160,216,.9)';
+    ctx.font='14px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('¡shh!', cx, top-6);
+  }
+  ctx.restore();
+}
+
+function drawTeacher(){
+  const tx=teacher.x, y=GROUND;
+  // silla
+  ctx.fillStyle='#5a3a1a';
+  ctx.fillRect(tx-6, y-46, 6, 46);
+  ctx.fillRect(tx-6, y-46, 50, 6);
+  // piernas verde claro
+  ctx.fillStyle='#9bcf3a';
+  ctx.fillRect(tx+6, y-20, 12, 20);
+  ctx.fillRect(tx+24, y-20, 12, 20);
+  // cuerpo verde
+  ctx.fillStyle='#2e8b57';
+  ctx.fillRect(tx+4, y-52, 36, 34);
+  // bufanda morada (como en el dibujo)
+  ctx.fillStyle='#8a4fc4';
+  ctx.fillRect(tx+4, y-54, 36, 8);
+  // cabeza
+  ctx.fillStyle='#f2c79a';
+  ctx.beginPath(); ctx.arc(tx+22, y-64, 14, 0, 7); ctx.fill();
+  // pelo/gorro café
+  ctx.fillStyle='#8a5a2a';
+  ctx.beginPath(); ctx.arc(tx+22, y-70, 14, Math.PI, 2*Math.PI); ctx.fill();
+  // ojos: cerrados (dormido) o abiertos (despierto)
+  ctx.strokeStyle='#222'; ctx.lineWidth=2;
+  if(teacher.awake){
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(tx+16,y-64,3,0,7); ctx.arc(tx+28,y-64,3,0,7); ctx.fill();
+    ctx.fillStyle='#222';
+    ctx.beginPath(); ctx.arc(tx+16,y-64,1.5,0,7); ctx.arc(tx+28,y-64,1.5,0,7); ctx.fill();
+    // signo de alerta
+    ctx.fillStyle='#e0552b'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('!', tx+22, y-86);
+  } else {
+    ctx.beginPath(); ctx.moveTo(tx+12,y-64); ctx.lineTo(tx+20,y-64);
+    ctx.moveTo(tx+24,y-64); ctx.lineTo(tx+32,y-64); ctx.stroke();
+    // zzz
+    ctx.fillStyle='#34a0d8'; ctx.font='italic bold 14px sans-serif'; ctx.textAlign='left';
+    const t=Date.now()/400;
+    ctx.fillText('z', tx+36, y-78 - (Math.sin(t)*2));
+    ctx.fillText('z', tx+44, y-86 - (Math.sin(t+1)*2));
+    ctx.fillText('z', tx+52, y-94 - (Math.sin(t+2)*2));
+  }
+  // llaves colgando del cinturón si no las han robado
+  if(!game.hasKeys){
+    ctx.fillStyle='#f0c400';
+    ctx.beginPath(); ctx.arc(tx+2, y-24, 4,0,7); ctx.fill();
+    ctx.fillRect(tx+1, y-24, 2, 9);
+  }
+}
+
+function drawCage(){
+  const cx=level.cageX, y=GROUND;
+  const size=70, top=y-size;
+  if(game.freed){
+    // jaula abierta y Manchitas afuera junto al niño... mostrar perrito feliz al lado de la jaula
+    drawDog(cx+size/2, y, true);
+    // puerta abierta
+    ctx.strokeStyle='#444'; ctx.lineWidth=5;
+    ctx.strokeRect(cx,top,size,size);
+    ctx.strokeStyle='#888'; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.moveTo(cx,top); ctx.lineTo(cx-22,top+10); // puerta abierta
+    ctx.lineTo(cx-22,top+size-10); ctx.lineTo(cx,top+size); ctx.stroke();
+    return;
+  }
+  // jaula
+  ctx.strokeStyle='#444'; ctx.lineWidth=5;
+  ctx.strokeRect(cx,top,size,size);
+  ctx.lineWidth=3; ctx.strokeStyle='#666';
+  for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(cx+i*size/4,top); ctx.lineTo(cx+i*size/4,top+size); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(cx,top+size/2); ctx.lineTo(cx+size,top+size/2); ctx.stroke();
+  // candado
+  ctx.fillStyle = game.hasKeys ? '#9bcf3a' : '#888';
+  ctx.fillRect(cx+size/2-6, top+size-6, 12, 10);
+  ctx.strokeStyle=ctx.fillStyle; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(cx+size/2, top+size-6, 5, Math.PI, 2*Math.PI); ctx.stroke();
+  // Manchitas dentro
+  drawDog(cx+size/2, top+size-6, false);
+}
+
+function drawDog(x,y,happy){
+  ctx.save();
+  // cuerpo café claro
+  ctx.fillStyle='#d99a52';
+  ctx.fillRect(x-12, y-16, 22, 13);
+  // cabeza
+  ctx.beginPath(); ctx.arc(x-14, y-18, 9, 0, 7); ctx.fill();
+  // oreja
+  ctx.fillStyle='#a86a2a';
+  ctx.beginPath(); ctx.arc(x-18, y-24, 4, 0, 7); ctx.fill();
+  // manchita
+  ctx.beginPath(); ctx.arc(x+2, y-12, 4, 0, 7); ctx.fill();
+  // patas
+  ctx.fillStyle='#d99a52';
+  ctx.fillRect(x-10,y-4,4,5); ctx.fillRect(x+4,y-4,4,5);
+  // cola (se mueve si está feliz)
+  ctx.strokeStyle='#d99a52'; ctx.lineWidth=3;
+  const wag = happy ? Math.sin(Date.now()/80)*8 : 0;
+  ctx.beginPath(); ctx.moveTo(x+10,y-14); ctx.lineTo(x+18, y-20+wag); ctx.stroke();
+  // ojo
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.arc(x-15, y-19, 1.6, 0, 7); ctx.fill();
+  if(happy){
+    ctx.fillStyle='#e0552b'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('❤', x-14, y-30);
+  }
+  ctx.restore();
+}
+
+function drawHUD(){
+  // indicador de nivel
+  ctx.fillStyle='rgba(0,0,0,.45)';
+  ctx.font='bold 16px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Nivel '+(game.level+1)+'/'+LEVELS.length, 12, 24);
+  ctx.fillText(game.hasKeys?'Llaves: 🔑':'Llaves: —', 12, 44);
+
+  if(flashTime>0 && flashMsg){
+    ctx.globalAlpha = Math.min(1, flashTime/40);
+    ctx.fillStyle='#fff'; ctx.strokeStyle='#e0552b'; ctx.lineWidth=4;
+    ctx.font='bold 22px "Comic Sans MS",sans-serif'; ctx.textAlign='center';
+    ctx.strokeText(flashMsg, W/2, 70);
+    ctx.fillText(flashMsg, W/2, 70);
+    ctx.globalAlpha=1;
+  }
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  drawGround();
+  drawCage();
+  drawTeacher();
+  drawBoy();
+  drawHUD();
+}
+
+function loop(){
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+loadLevel(0);
+render();
+loop();
+</script>
+</body>
+</html>
