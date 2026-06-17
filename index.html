@@ -125,7 +125,7 @@
         <div class="overlay" id="overlay">
           <div class="card" id="card">
             <h1>El Rescate de Manchitas</h1>
-            <p>Eres un niño valiente. ¡Quita las llaves al maestro dormido y libera a tu perrito Manchitas de la jaula!</p>
+            <p>Eres Eric, un niño valiente. ¡Quita las llaves al maestro dormido y libera a tu perrito Manchitas de la jaula!</p>
             <p>Muévete con ◀ ▶, salta con ▲, agáchate con ▼ para esconderte, toma las llaves con ✋ y abre la jaula con 🔓.</p>
             <button id="startBtn">¡Jugar!</button>
           </div>
@@ -301,7 +301,7 @@ function levelComplete(){
     showCard("¡Nivel superado! ⭐", "Manchitas mueve la colita feliz. ¿Listo para el siguiente nivel?", "Siguiente nivel", ()=>{ loadLevel(game.level+1); flash(LEVELS[game.level].msg); start(); });
   } else {
     game.state='win';
-    showCard("¡GANASTE! 🎉🐶", "Liberaste a Manchitas en todos los niveles. ¡El niño y su fiel amigo viven felices para siempre!", "Jugar otra vez", ()=>{ loadLevel(0); flash(LEVELS[0].msg); start(); });
+    showCard("¡GANASTE! 🎉🐶", "Liberaste a Manchitas en todos los niveles. ¡Eric y su fiel amigo viven felices para siempre!", "Jugar otra vez", ()=>{ loadLevel(0); flash(LEVELS[0].msg); start(); });
   }
 }
 
@@ -435,11 +435,15 @@ function drawBoy(){
     ctx.beginPath(); ctx.arc(kx, top+24*ch, 4,0,7); ctx.fill();
     ctx.fillRect(kx-1, top+24*ch, 2, 9);
   }
-  // señal de "agachado/escondido"
+  // señal de "agachado/escondido" o el nombre de Eric
+  ctx.textAlign='center';
   if(boy.crouch){
     ctx.fillStyle='rgba(60,160,216,.9)';
-    ctx.font='14px sans-serif'; ctx.textAlign='center';
+    ctx.font='14px sans-serif';
     ctx.fillText('¡shh!', cx, top-6);
+  } else {
+    ctx.fillStyle='#e0552b'; ctx.font='bold 12px "Comic Sans MS",sans-serif';
+    ctx.fillText('Eric', cx, top-6);
   }
   ctx.restore();
 }
