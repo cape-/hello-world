@@ -125,8 +125,8 @@
         <div class="overlay" id="overlay">
           <div class="card" id="card">
             <h1>El Rescate de Manchitas</h1>
-            <p>Eres Eric, un niño valiente. ¡Quita las llaves al maestro dormido y libera a tu perrito Manchitas de la jaula!</p>
-            <p>Muévete con ◀ ▶, salta con ▲, agáchate con ▼ para esconderte, toma las llaves con ✋ y abre la jaula con 🔓.</p>
+            <p>Eres Eric, un niño valiente. ¡Quita las llaves al maestro y libera a tu perrito Manchitas de la jaula en 20 niveles!</p>
+            <p>Muévete con ◀ ▶, salta (▲) sobre pelotas y niños, agáchate (▼) para esconderte y pasar bajo los aviones, toma las llaves con ✋ y abre la jaula con 🔓. ¡Cuidado: al robar las llaves suena la campana del recreo!</p>
             <button id="startBtn">¡Jugar!</button>
           </div>
         </div>
@@ -186,17 +186,51 @@ if(navigator.getBattery){
 }
 
 // ---------- Definición de niveles ----------
-// teacherX: dónde se sienta el maestro dormido
-// cageX: dónde está la jaula de Manchitas
-// gaps: hoyos en el suelo que hay que saltar [{x,w}]
-// wakeChance: probabilidad de que el maestro despierte (0 = nunca)
+// Campos por nivel (todos opcionales menos teacherX/cageX/msg):
+//   teacherX  : dónde empieza el maestro (sentado o patrullando)
+//   cageX     : dónde está la jaula de Manchitas
+//   gaps      : hoyos en el suelo que hay que saltar [{x,w}]
+//   wakeChance: prob. de que el maestro dormido despierte (0 = nunca)
+//   balls     : pelotas que ruedan -> SALTA (▲)  [{x,r,speed}]
+//   planes    : aviones de papel que vuelan -> AGÁCHATE (▼)  [{x,speed,dir}]
+//   patrol    : el maestro pasea -> róbale por detrás o agachado  {min,max,speed,sight}
+//   recess    : al tomar las llaves suena la campana: los niños salen
+//               al recreo y el maestro te persigue {start,kids,kidSpeed,chaseSpeed}
 const LEVELS = [
   { teacherX:380, cageX:680, gaps:[],                       wakeChance:0,    msg:"Nivel 1: El maestro duerme profundamente. ¡Toma las llaves y libera a Manchitas!" },
   { teacherX:400, cageX:710, gaps:[],                       wakeChance:0.004, msg:"Nivel 2: El maestro a veces abre los ojos. ¡Agáchate (▼) para esconderte!" },
   { teacherX:430, cageX:720, gaps:[{x:250,w:60}],           wakeChance:0.006, msg:"Nivel 3: ¡Cuidado con el hoyo! Salta (▲) para cruzar." },
-  { teacherX:300, cageX:730, gaps:[{x:480,w:70}],           wakeChance:0.009, msg:"Nivel 4: La jaula está lejos. ¡Sé rápido y sigiloso!" },
-  { teacherX:420, cageX:740, gaps:[{x:200,w:55},{x:560,w:55}], wakeChance:0.012, msg:"Nivel 5: ¡El reto final! Dos hoyos y un maestro muy alerta." },
+  { teacherX:300, cageX:715, gaps:[{x:480,w:70}],           wakeChance:0.009, msg:"Nivel 4: La jaula está lejos. ¡Sé rápido y sigiloso!" },
+  { teacherX:420, cageX:715, gaps:[{x:200,w:55},{x:560,w:55}], wakeChance:0.012, msg:"Nivel 5: ¡Dos hoyos y un maestro muy alerta!" },
+
+  // --- Pelotas: salta por encima ---
+  { teacherX:380, cageX:705, gaps:[], wakeChance:0.005, balls:[{x:520,r:15,speed:2.4}], msg:"Nivel 6: ¡Una pelota rueda por el patio! Salta (▲) por encima." },
+  { teacherX:360, cageX:710, gaps:[{x:250,w:55}], wakeChance:0.006, balls:[{x:560,r:15,speed:2.8}], msg:"Nivel 7: Una pelota y un hoyo. ¡Salta con cuidado!" },
+
+  // --- Aviones de papel: agáchate por debajo ---
+  { teacherX:400, cageX:705, gaps:[], wakeChance:0.005, planes:[{x:-40,speed:3.2,dir:1}], msg:"Nivel 8: ¡Vuelan aviones de papel! Agáchate (▼) para pasar por debajo." },
+  { teacherX:380, cageX:715, gaps:[], wakeChance:0.006, balls:[{x:300,r:14,speed:2.6}], planes:[{x:840,speed:3,dir:-1}], msg:"Nivel 9: Salta las pelotas y agáchate ante los aviones." },
+
+  // --- El maestro patrulla ---
+  { teacherX:300, cageX:715, gaps:[], patrol:{min:240,max:540,speed:1.8,sight:170}, msg:"Nivel 10: ¡El maestro patrulla! Acércate por detrás o agáchate para robar las llaves." },
+  { teacherX:300, cageX:715, gaps:[{x:600,w:55}], patrol:{min:240,max:520,speed:2.0,sight:170}, msg:"Nivel 11: Maestro en ronda y un hoyo. ¡Sé sigiloso y salta!" },
+  { teacherX:300, cageX:715, gaps:[], patrol:{min:230,max:520,speed:2.0,sight:175}, balls:[{x:620,r:15,speed:2.8}], msg:"Nivel 12: Patrulla y pelota a la vez." },
+
+  // --- ¡Recreo! Suena la campana y empieza la persecución ---
+  { teacherX:380, cageX:710, gaps:[], wakeChance:0.004, recess:{start:'keys',kids:4,kidSpeed:3.0,chaseSpeed:2.3}, msg:"Nivel 13: Roba las llaves y… ¡RIIING! Esquiva a los niños mientras el maestro te persigue." },
+  { teacherX:380, cageX:715, gaps:[], wakeChance:0.005, balls:[{x:520,r:14,speed:2.6}], recess:{start:'keys',kids:4,kidSpeed:3.2,chaseSpeed:2.4}, msg:"Nivel 14: Recreo con pelotas. ¡Salta y corre!" },
+  { teacherX:380, cageX:715, gaps:[], wakeChance:0.005, planes:[{x:-40,speed:3.4,dir:1}], recess:{start:'keys',kids:5,kidSpeed:3.2,chaseSpeed:2.4}, msg:"Nivel 15: Recreo con aviones. ¡Salta a los niños y agáchate ante los aviones!" },
+
+  // --- Combos grandes ---
+  { teacherX:300, cageX:715, gaps:[], patrol:{min:240,max:540,speed:2.1,sight:175}, balls:[{x:620,r:14,speed:3.0}], planes:[{x:840,speed:3.2,dir:-1}], msg:"Nivel 16: El gran salón de juegos: patrulla, pelotas y aviones." },
+  { teacherX:380, cageX:715, gaps:[{x:300,w:55}], wakeChance:0.005, recess:{start:'keys',kids:5,kidSpeed:3.3,chaseSpeed:2.5}, msg:"Nivel 17: Recreo con un hoyo en el camino. ¡Salta bien!" },
+  { teacherX:380, cageX:715, gaps:[], wakeChance:0.005, balls:[{x:480,r:14,speed:3.0}], planes:[{x:-40,speed:3.4,dir:1}], recess:{start:'keys',kids:5,kidSpeed:3.4,chaseSpeed:2.5}, msg:"Nivel 18: ¡Recreo total! Pelotas, aviones y niños por todas partes." },
+  { teacherX:300, cageX:715, gaps:[], patrol:{min:240,max:540,speed:2.1,sight:175}, balls:[{x:620,r:14,speed:3.0}], recess:{start:'keys',kids:5,kidSpeed:3.4,chaseSpeed:2.5}, msg:"Nivel 19: Roba a un maestro que patrulla… ¡y sobrevive al recreo!" },
+  { teacherX:320, cageX:720, gaps:[{x:540,w:55}], patrol:{min:250,max:560,speed:2.2,sight:180}, balls:[{x:640,r:14,speed:3.2}], planes:[{x:-40,speed:3.6,dir:1}], recess:{start:'keys',kids:6,kidSpeed:3.6,chaseSpeed:2.6}, msg:"Nivel 20: ¡EL GRAN ESCAPE! Patrulla, pelotas, aviones, un hoyo y el recreo final. ¡Salva a Manchitas!" },
 ];
+
+// Colores de camisa para los niños del recreo
+const KID_COLORS = ['#e84d8a','#34a0d8','#f0a91e','#9bcf3a','#8a4fc4','#e0552b'];
 
 // ---------- Estado del juego ----------
 const game = {
@@ -205,6 +239,11 @@ const game = {
   hasKeys:false,
   freed:false,
   wakeTimer:0,
+  balls:[],         // pelotas activas en el nivel
+  planes:[],        // aviones de papel activos
+  children:[],      // niños que salen al recreo
+  recessOn:false,   // ¿ya sonó la campana?
+  bellFlash:0,      // brillo del icono de campana
 };
 
 const boy = {
@@ -212,7 +251,7 @@ const boy = {
   onGround:true, crouch:false, dir:1, walk:0,
 };
 
-let teacher = { x:380, awake:false, blink:0 };
+let teacher = { x:380, awake:false, blink:0, dir:1, looking:false, walk:0, mode:'seated' };
 let level = LEVELS[0];
 
 function loadLevel(i){
@@ -221,8 +260,15 @@ function loadLevel(i){
   game.hasKeys = false;
   game.freed = false;
   game.wakeTimer = 0;
+  game.recessOn = false;
+  game.bellFlash = 0;
+  game.children = [];
+  // copias de trabajo de los obstáculos (no mutar la definición original)
+  game.balls  = (level.balls  || []).map(b=>({ x:b.x, y:GROUND, r:b.r||14, speed:b.speed||2, dir:1 }));
+  game.planes = (level.planes || []).map(p=>({ x:(p.x!=null?p.x:-40), y:GROUND-46, speed:p.speed||3, dir:p.dir||1 }));
   boy.x = 60; boy.y = GROUND; boy.vx=0; boy.vy=0; boy.onGround=true; boy.crouch=false; boy.dir=1;
-  teacher = { x:level.teacherX, awake:false, blink:0 };
+  const startX = level.patrol ? level.patrol.min : level.teacherX;
+  teacher = { x:startX, awake:false, blink:0, dir:1, looking:false, walk:0, mode: level.patrol?'patrol':'seated' };
 }
 
 // ---------- Controles ----------
@@ -271,9 +317,16 @@ function tryJump(){
 }
 function tryGrab(){
   if(game.state!=='playing' || game.hasKeys) return;
-  if(Math.abs((boy.x+boy.w/2)-(teacher.x+30)) < 60){
-    if(teacher.awake){ caught(); return; }   // ¡te ve robando!
+  const tcx = level.patrol ? teacher.x+20 : teacher.x+30;
+  if(Math.abs((boy.x+boy.w/2)-tcx) < 60){
+    if(level.patrol){
+      // patrullando: te ve si está mirando hacia ti y no estás agachado
+      if(teacher.looking && !boy.crouch){ caught(); return; }
+    } else if(teacher.awake){
+      caught(); return;                       // ¡te ve robando!
+    }
     game.hasKeys = true;
+    keySound();
     flash("¡Tienes las llaves! 🔑");
   }
 }
@@ -291,9 +344,51 @@ function tryFree(){
 let flashMsg=null, flashTime=0;
 function flash(t){ flashMsg=t; flashTime=120; }
 
-function caught(){
+// ---------- Sonidos (campana, llaves, etc.) ----------
+let actx=null;
+function unlockAudio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function tone(freq,dur,type='sine',vol=.15,delay=0){
+  if(!actx) return;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type=type; o.frequency.value=freq; o.connect(g); g.connect(actx.destination);
+  const t=actx.currentTime+delay;
+  g.gain.setValueAtTime(vol,t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.start(t); o.stop(t+dur);
+}
+function bellSound(){ tone(988,.18,'square',.18,0); tone(1319,.18,'square',.18,.16); tone(988,.28,'square',.15,.32); }
+function keySound(){ tone(660,.08,'triangle',.2,0); tone(990,.12,'triangle',.2,.08); }
+function winSound(){ [523,659,784,1047].forEach((f,i)=>tone(f,.22,'triangle',.18,i*.12)); }
+function oopsSound(){ tone(220,.3,'sawtooth',.18,0); tone(150,.35,'sawtooth',.15,.12); }
+
+// ---------- ¡Suena la campana del recreo! ----------
+function startRecess(){
+  game.recessOn = true;
+  game.bellFlash = 180;
+  teacher.mode = 'chase';
+  teacher.walk = 0;
+  const n  = level.recess.kids || 4;
+  const sp = level.recess.kidSpeed || 3.2;
+  game.children = [];
+  for(let i=0;i<n;i++){
+    game.children.push({
+      x: 220 + Math.random()*(W-320),
+      dir: Math.random()<0.5 ? -1 : 1,
+      speed: sp*(0.8+Math.random()*0.5),
+      w: 22, h: 36, walk: Math.random()*6,
+      color: KID_COLORS[i % KID_COLORS.length],
+    });
+  }
+  bellSound();
+  flash("🔔 ¡RIIING! ¡Recreo! ¡Corre y esquiva a los niños!");
+}
+
+function caught(title,text){
   game.state='caught';
-  showCard("¡Te atraparon! 😮", "El maestro te vio. Recuerda agacharte (▼) cuando despierte.", "Reintentar", ()=>{ loadLevel(game.level); start(); });
+  oopsSound();
+  showCard(title || "¡Te atraparon! 😮",
+           text  || "El maestro te vio. Recuerda agacharte (▼) cuando despierte.",
+           "Reintentar", ()=>{ loadLevel(game.level); start(); });
 }
 function levelComplete(){
   if(game.level < LEVELS.length-1){
@@ -301,7 +396,8 @@ function levelComplete(){
     showCard("¡Nivel superado! ⭐", "Manchitas mueve la colita feliz. ¿Listo para el siguiente nivel?", "Siguiente nivel", ()=>{ loadLevel(game.level+1); flash(LEVELS[game.level].msg); start(); });
   } else {
     game.state='win';
-    showCard("¡GANASTE! 🎉🐶", "Liberaste a Manchitas en todos los niveles. ¡Eric y su fiel amigo viven felices para siempre!", "Jugar otra vez", ()=>{ loadLevel(0); flash(LEVELS[0].msg); start(); });
+    winSound();
+    showCard("¡GANASTE! 🎉🐶", "Liberaste a Manchitas en los 20 niveles. ¡Eric y su fiel amigo viven felices para siempre!", "Jugar otra vez", ()=>{ loadLevel(0); flash(LEVELS[0].msg); start(); });
   }
 }
 
@@ -314,7 +410,7 @@ function showCard(title,text,btn,cb){
   card.querySelector('button').onclick = ()=>{ overlay.classList.add('hidden'); cb(); };
 }
 function start(){ overlay.classList.add('hidden'); game.state='playing'; }
-document.getElementById('startBtn').onclick = ()=>{ loadLevel(0); flash(LEVELS[0].msg); start(); };
+document.getElementById('startBtn').onclick = ()=>{ unlockAudio(); loadLevel(0); flash(LEVELS[0].msg); start(); };
 
 // ---------- Física y lógica ----------
 function inGap(px){
@@ -325,18 +421,52 @@ function inGap(px){
 function update(){
   if(game.state!=='playing') return;
 
-  // El maestro despierta/duerme
-  if(level.wakeChance>0){
-    if(teacher.awake){
-      game.wakeTimer--;
-      if(game.wakeTimer<=0) teacher.awake=false;
-    } else if(Math.random() < level.wakeChance){
-      teacher.awake=true; game.wakeTimer=80 + Math.random()*60;
+  // ¿Hora de que suene la campana del recreo?
+  if(level.recess && !game.recessOn){
+    const s = level.recess.start || 'keys';
+    if((s==='keys' && game.hasKeys) ||
+       (s==='enter') ||
+       (typeof s==='number' && boy.x > s)){
+      startRecess();
     }
   }
-  teacher.blink = (teacher.blink+1)%200;
 
-  // Movimiento
+  // ---------- Comportamiento del maestro ----------
+  const bcx = boy.x + boy.w/2;
+  if(game.recessOn){
+    // Persigue a Eric
+    teacher.walk += 0.35;
+    const tcx = teacher.x + 20;
+    teacher.dir = bcx < tcx ? -1 : 1;
+    teacher.x += teacher.dir * level.recess.chaseSpeed;
+    teacher.x = Math.max(-10, Math.min(W-30, teacher.x));
+    if(Math.abs(bcx-(teacher.x+20)) < 30){
+      caught("¡El maestro te alcanzó! 🏃","Te atrapó en el recreo. ¡Corre más rápido y esquiva a los niños!");
+    }
+  } else if(level.patrol){
+    // Pasea de un lado a otro y vigila hacia donde camina
+    teacher.walk += 0.3;
+    teacher.x += teacher.dir * level.patrol.speed;
+    if(teacher.x <= level.patrol.min){ teacher.x=level.patrol.min; teacher.dir=1; }
+    if(teacher.x >= level.patrol.max){ teacher.x=level.patrol.max; teacher.dir=-1; }
+    const tcx = teacher.x + 20;
+    const facing = (teacher.dir>0 && bcx>tcx) || (teacher.dir<0 && bcx<tcx);
+    teacher.looking = facing && Math.abs(bcx-tcx) < (level.patrol.sight||170);
+    if(teacher.looking && !boy.crouch) caught("¡El maestro te vio! 👀","Estaba mirando hacia ti. Agáchate (▼) o pásate por detrás.");
+  } else {
+    // Sentado y dormido (a veces despierta)
+    if(level.wakeChance>0){
+      if(teacher.awake){
+        game.wakeTimer--;
+        if(game.wakeTimer<=0) teacher.awake=false;
+      } else if(Math.random() < level.wakeChance){
+        teacher.awake=true; game.wakeTimer=80 + Math.random()*60;
+      }
+    }
+    teacher.blink = (teacher.blink+1)%200;
+  }
+
+  // ---------- Movimiento de Eric ----------
   boy.crouch = keys.down && boy.onGround;
   const speed = boy.crouch ? 1.4 : 3.0;
   boy.vx = 0;
@@ -356,7 +486,7 @@ function update(){
     if(inGap(feet) && boy.vy>0){
       // cae en el hoyo
       if(boy.y > H+40){
-        game.state='caught';
+        game.state='caught'; oopsSound();
         showCard("¡Ups! 🕳️","Caíste en el hoyo. Salta (▲) para cruzarlo.","Reintentar",()=>{ loadLevel(game.level); start(); });
       }
     } else {
@@ -366,13 +496,45 @@ function update(){
     boy.onGround=false;
   }
 
-  // Si el maestro está despierto y el niño se mueve sin agacharse cerca de él -> te ve
-  if(teacher.awake && !boy.crouch && Math.abs(boy.vx)>0){
-    if(Math.abs((boy.x+boy.w/2)-(teacher.x+30)) < 150){
-      caught();
+  // Maestro sentado y despierto: si te mueves cerca sin agacharte, te ve
+  if(!game.recessOn && !level.patrol && teacher.awake && !boy.crouch && Math.abs(boy.vx)>0){
+    if(Math.abs((boy.x+boy.w/2)-(teacher.x+30)) < 150) caught();
+  }
+
+  // ---------- Pelotas: ruedan; hay que SALTAR por encima ----------
+  for(const b of game.balls){
+    b.x += b.dir*b.speed;
+    if(b.x < b.r){ b.x=b.r; b.dir=1; }
+    if(b.x > W-b.r){ b.x=W-b.r; b.dir=-1; }
+    if(Math.abs(bcx-b.x) < boy.w/2+b.r && boy.y > GROUND-2*b.r-2){
+      caught("¡La pelota te golpeó! ⚽","Salta (▲) por encima de las pelotas que ruedan.");
     }
   }
 
+  // ---------- Aviones de papel: vuelan; hay que AGACHARSE ----------
+  for(const p of game.planes){
+    p.x += p.dir*p.speed;
+    if(p.dir>0 && p.x > W+50) p.x = -50;
+    if(p.dir<0 && p.x < -50) p.x = W+50;
+    if(Math.abs(bcx-p.x) < boy.w/2+20 && !boy.crouch){
+      caught("¡Un avión de papel! ✈️","Agáchate (▼) para pasar por debajo de los aviones.");
+    }
+  }
+
+  // ---------- Niños del recreo: corren; hay que SALTARLOS ----------
+  if(game.recessOn){
+    for(const k of game.children){
+      k.x += k.dir*k.speed;
+      if(k.x < k.w){ k.x=k.w; k.dir=1; }
+      if(k.x > W-k.w){ k.x=W-k.w; k.dir=-1; }
+      k.walk += 0.3;
+      if(Math.abs(bcx-k.x) < boy.w/2+k.w/2 && boy.y > GROUND-30){
+        caught("¡Chocaste con un niño! 💥","Salta (▲) por encima de los niños que corren al recreo.");
+      }
+    }
+  }
+
+  if(game.bellFlash>0) game.bellFlash--;
   if(flashTime>0) flashTime--;
 }
 
@@ -449,6 +611,8 @@ function drawBoy(){
 }
 
 function drawTeacher(){
+  if(game.recessOn){ drawTeacherWalk(teacher.x, GROUND, teacher.dir, true); return; }
+  if(level.patrol){ drawTeacherWalk(teacher.x, GROUND, teacher.dir, false); return; }
   const tx=teacher.x, y=GROUND;
   // silla
   ctx.fillStyle='#5a3a1a';
@@ -556,12 +720,129 @@ function drawDog(x,y,happy){
   ctx.restore();
 }
 
+// El maestro de pie: patrullando o persiguiendo (chasing)
+function drawTeacherWalk(tx,y,dir,chasing){
+  const cx = tx+20;
+  const swing = Math.sin(teacher.walk)*6;
+  ctx.save();
+  // piernas verde claro (caminando)
+  ctx.fillStyle='#9bcf3a';
+  ctx.fillRect(cx-10, y-22, 9, 22 + swing);
+  ctx.fillRect(cx+2,  y-22, 9, 22 - swing);
+  // zapatos
+  ctx.fillStyle='#5a3a1a';
+  ctx.fillRect(cx-12, y-3, 12,5); ctx.fillRect(cx, y-3, 12,5);
+  // cuerpo verde
+  ctx.fillStyle='#2e8b57';
+  ctx.fillRect(cx-14, y-54, 30, 34);
+  // bufanda morada
+  ctx.fillStyle='#8a4fc4';
+  ctx.fillRect(cx-14, y-56, 30, 8);
+  // brazo extendido hacia donde camina
+  ctx.fillStyle='#2e8b57';
+  ctx.fillRect(cx + (dir>0?12:-18), y-50, 6, 18);
+  // cabeza
+  ctx.fillStyle='#f2c79a';
+  ctx.beginPath(); ctx.arc(cx, y-64, 14, 0, 7); ctx.fill();
+  // pelo/gorro café
+  ctx.fillStyle='#8a5a2a';
+  ctx.beginPath(); ctx.arc(cx, y-70, 14, Math.PI, 2*Math.PI); ctx.fill();
+  // ojos abiertos mirando hacia dir
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(cx-6,y-64,3,0,7); ctx.arc(cx+6,y-64,3,0,7); ctx.fill();
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.arc(cx-6+dir*1.5,y-64,1.6,0,7); ctx.arc(cx+6+dir*1.5,y-64,1.6,0,7); ctx.fill();
+  if(chasing){
+    // ceño enojado + boca + grito
+    ctx.strokeStyle='#222'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(cx-9,y-69); ctx.lineTo(cx-3,y-67);
+    ctx.moveTo(cx+9,y-69); ctx.lineTo(cx+3,y-67); ctx.stroke();
+    ctx.fillStyle='#7a2a2a';
+    ctx.beginPath(); ctx.arc(cx, y-56, 3, 0, 7); ctx.fill();
+    ctx.fillStyle='#e0552b'; ctx.font='bold 16px "Comic Sans MS",sans-serif'; ctx.textAlign='center';
+    ctx.fillText('¡Oye!', cx, y-86);
+  } else if(teacher.looking){
+    ctx.fillStyle='#e0552b'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('!', cx, y-86);
+  }
+  // llaves al cinturón si no las han robado
+  if(!game.hasKeys){
+    ctx.fillStyle='#f0c400';
+    const kx = cx + (dir>0?-16:16);
+    ctx.beginPath(); ctx.arc(kx, y-24, 4,0,7); ctx.fill();
+    ctx.fillRect(kx-1, y-24, 2, 9);
+  }
+  ctx.restore();
+}
+
+function drawBall(b){
+  ctx.save();
+  // pelota a rayas estilo dibujo
+  ctx.fillStyle='#e0552b';
+  ctx.beginPath(); ctx.arc(b.x, b.y-b.r, b.r, 0, 7); ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(b.x, b.y-b.r, b.r*0.55, 0, 7); ctx.fill();
+  ctx.fillStyle='#34a0d8';
+  ctx.beginPath(); ctx.arc(b.x, b.y-b.r, b.r*0.28, 0, 7); ctx.fill();
+  // sombra rodando
+  ctx.fillStyle='rgba(0,0,0,.12)';
+  ctx.beginPath(); ctx.ellipse(b.x, b.y+2, b.r, 4, 0, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawPlane(p){
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.scale(p.dir, 1);              // apunta hacia donde vuela
+  ctx.fillStyle='#fdf8ef'; ctx.strokeStyle='#9aa0a6'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(18,0); ctx.lineTo(-16,-9); ctx.lineTo(-7,0); ctx.lineTo(-16,9);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(18,0); ctx.lineTo(-7,0); ctx.stroke();
+  ctx.restore();
+}
+
+function drawChild(k){
+  const x=k.x, y=GROUND;
+  const swing=Math.sin(k.walk)*5;
+  ctx.save();
+  // piernas
+  ctx.fillStyle='#3a3a55';
+  ctx.fillRect(x-6, y-14, 5, 14+swing);
+  ctx.fillRect(x+1, y-14, 5, 14-swing);
+  // cuerpo (color propio)
+  ctx.fillStyle=k.color;
+  ctx.fillRect(x-8, y-30, 16, 18);
+  // brazos en carrera
+  ctx.fillRect(x + (k.dir>0?7:-10), y-28, 4, 12);
+  // cabeza
+  ctx.fillStyle='#f2c79a';
+  ctx.beginPath(); ctx.arc(x, y-36, 8, 0, 7); ctx.fill();
+  // pelo
+  ctx.fillStyle='#5a3a1a';
+  ctx.beginPath(); ctx.arc(x, y-39, 8, Math.PI, 2*Math.PI); ctx.fill();
+  // ojo mirando hacia donde corre
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.arc(x+k.dir*3, y-36, 1.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
 function drawHUD(){
   // indicador de nivel
   ctx.fillStyle='rgba(0,0,0,.45)';
   ctx.font='bold 16px sans-serif'; ctx.textAlign='left';
   ctx.fillText('Nivel '+(game.level+1)+'/'+LEVELS.length, 12, 24);
   ctx.fillText(game.hasKeys?'Llaves: 🔑':'Llaves: —', 12, 44);
+
+  // Campana del recreo (parpadea cuando suena)
+  if(game.recessOn){
+    ctx.textAlign='right';
+    ctx.font='bold 22px sans-serif';
+    ctx.globalAlpha = game.bellFlash>0 ? (0.5+0.5*Math.abs(Math.sin(game.bellFlash/6))) : 1;
+    ctx.fillStyle = game.bellFlash>0 ? '#e0552b' : 'rgba(0,0,0,.45)';
+    ctx.fillText('🔔 ¡Recreo!', W-12, 26);
+    ctx.globalAlpha=1;
+  }
 
   if(flashTime>0 && flashMsg){
     ctx.globalAlpha = Math.min(1, flashTime/40);
@@ -577,8 +858,11 @@ function render(){
   ctx.clearRect(0,0,W,H);
   drawGround();
   drawCage();
+  for(const b of game.balls) drawBall(b);
   drawTeacher();
+  if(game.recessOn) for(const k of game.children) drawChild(k);
   drawBoy();
+  for(const p of game.planes) drawPlane(p);   // los aviones vuelan por delante
   drawHUD();
 }
 
