@@ -63,13 +63,15 @@
 
   /* Lienzo del juego */
   .stage{ position:relative; }
-  canvas{ display:block; width:100%; height:auto; background:linear-gradient(#bfeaff,#eaf7d6); }
+  canvas{ display:block; width:100%; height:auto; background:#bfeaff; transition:filter .3s; }
+  canvas.blurred{ filter:blur(4px) brightness(.6); }
 
   /* Mensajes encima del juego */
   .overlay{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     text-align:center; padding:18px; pointer-events:none;
   }
+  .overlay.active{ pointer-events:auto; }
   .card{
     background:rgba(255,255,255,.92); border:4px solid #f0a91e; border-radius:18px;
     padding:18px 22px; max-width:80%; pointer-events:auto;
@@ -122,7 +124,7 @@
       <!-- Juego -->
       <div class="stage">
         <canvas id="game" width="800" height="420"></canvas>
-        <div class="overlay" id="overlay">
+        <div class="overlay active" id="overlay">
           <div class="card" id="card">
             <h1>El Rescate de Manchitas</h1>
             <p>Eres Eric, un niño valiente. ¡Quita las llaves al maestro y libera a tu perrito Manchitas de la jaula en 20 niveles!</p>
@@ -376,6 +378,37 @@ function keySound(){ tone(660,.08,'triangle',.2,0); tone(990,.12,'triangle',.2,.
 function winSound(){ [523,659,784,1047].forEach((f,i)=>tone(f,.22,'triangle',.18,i*.12)); }
 function oopsSound(){ tone(220,.3,'sawtooth',.18,0); tone(150,.35,'sawtooth',.15,.12); }
 
+// ---------- Música de recreo ----------
+// Melodía alegre de 16 notas en Do mayor (freq en Hz, duración en segundos)
+const RECESS_NOTES = [
+  [523,.18],[659,.18],[784,.18],[659,.18],
+  [880,.22],[784,.18],[659,.32],[0,.14],
+  [659,.18],[523,.18],[659,.18],[784,.18],
+  [659,.22],[523,.18],[392,.32],[0,.18],
+];
+let _rMusicIdx=0, _rMusicNext=0, _rMusicTimer=null;
+function _scheduleRecess(){
+  if(!actx || !game.recessOn){ _rMusicTimer=null; return; }
+  const ahead = 0.25;
+  while(_rMusicNext < actx.currentTime + ahead){
+    const [freq,dur] = RECESS_NOTES[_rMusicIdx % RECESS_NOTES.length];
+    if(freq>0) tone(freq, dur, 'triangle', 0.07, _rMusicNext - actx.currentTime);
+    _rMusicNext += dur + 0.02;
+    _rMusicIdx++;
+  }
+  _rMusicTimer = setTimeout(_scheduleRecess, 100);
+}
+function startRecessMusic(){
+  if(!actx) return;
+  _rMusicIdx=0; _rMusicNext=actx.currentTime+0.12;
+  clearTimeout(_rMusicTimer);
+  _scheduleRecess();
+}
+function stopRecessMusic(){
+  clearTimeout(_rMusicTimer);
+  _rMusicTimer=null;
+}
+
 // ---------- ¡Suena la campana del recreo! ----------
 function startRecess(){
   game.recessOn = true;
@@ -405,19 +438,22 @@ function startRecess(){
   }
   bellSound();
   flash("🔔 ¡RIIING! ¡Recreo! ¡Corre y esquiva a los niños!");
+  setTimeout(startRecessMusic, 500);
 }
 
 function caught(title,text){
   game.state='caught';
+  stopRecessMusic();
   oopsSound();
   showCard(title || "¡Te atraparon! 😮",
            text  || "El maestro te vio. Recuerda agacharte (▼) cuando despierte.",
-           "Reintentar", ()=>{ loadLevel(game.level); start(); });
+           "Reintentar", ()=>{ loadLevel(game.level); start(); }, 3);
 }
 function levelComplete(){
+  stopRecessMusic();
   if(game.level < LEVELS.length-1){
     game.state='levelclear';
-    showCard("¡Nivel superado! ⭐", "Manchitas mueve la colita feliz. ¿Listo para el siguiente nivel?", "Siguiente nivel", ()=>{ loadLevel(game.level+1); flash(LEVELS[game.level].msg); start(); });
+    showCard("¡Nivel superado! ⭐", "Manchitas mueve la colita feliz. ¿Listo para el siguiente nivel?", "Siguiente nivel", ()=>{ loadLevel(game.level+1); flash(LEVELS[game.level].msg); start(); }, 3);
   } else {
     game.state='win';
     winSound();
@@ -428,12 +464,25 @@ function levelComplete(){
 // ---------- Overlay / tarjetas ----------
 const overlay=document.getElementById('overlay');
 const card=document.getElementById('card');
-function showCard(title,text,btn,cb){
+function showCard(title,text,btn,cb,countdown){
   overlay.classList.remove('hidden');
-  card.innerHTML = `<h1>${title}</h1><p>${text}</p><button>${btn}</button>`;
-  card.querySelector('button').onclick = ()=>{ overlay.classList.add('hidden'); cb(); };
+  overlay.classList.add('active');
+  canvas.classList.add('blurred');
+  card.innerHTML = `<h1>${title}</h1><p>${text}</p><button id="cardBtn">${btn}${countdown?' ('+countdown+')':''}</button>`;
+  const btnEl = card.querySelector('#cardBtn');
+  const trigger = ()=>{ clearInterval(showCard._timer); overlay.classList.remove('active'); overlay.classList.add('hidden'); canvas.classList.remove('blurred'); cb(); };
+  btnEl.onclick = trigger;
+  clearInterval(showCard._timer);
+  if(countdown){
+    let secs = countdown;
+    showCard._timer = setInterval(()=>{
+      secs--;
+      if(secs <= 0){ clearInterval(showCard._timer); trigger(); }
+      else { btnEl.textContent = btn+' ('+secs+')'; }
+    }, 1000);
+  }
 }
-function start(){ overlay.classList.add('hidden'); game.state='playing'; }
+function start(){ overlay.classList.remove('active'); overlay.classList.add('hidden'); canvas.classList.remove('blurred'); game.state='playing'; }
 document.getElementById('startBtn').onclick = ()=>{ unlockAudio(); loadLevel(0); flash(LEVELS[0].msg); start(); };
 
 // ---------- Física y lógica ----------
@@ -510,8 +559,8 @@ function update(){
     if(inGap(feet) && boy.vy>0){
       // cae en el hoyo
       if(boy.y > H+40){
-        game.state='caught'; oopsSound();
-        showCard("¡Ups! 🕳️","Caíste en el hoyo. Salta (▲) para cruzarlo.","Reintentar",()=>{ loadLevel(game.level); start(); });
+        game.state='caught'; stopRecessMusic(); oopsSound();
+        showCard("¡Ups! 🕳️","Caíste en el hoyo. Salta (▲) para cruzarlo.","Reintentar",()=>{ loadLevel(game.level); start(); }, 3);
       }
     } else {
       boy.y = GROUND; boy.vy=0; boy.onGround=true;
@@ -567,18 +616,31 @@ function update(){
 
 // ---------- Dibujo ----------
 function drawGround(){
-  // cielo ya está por css; suelo
-  ctx.fillStyle='#7ec850';
+  const recess = game.recessOn;
+  // cielo degradado dibujado en canvas
+  const skyGrad = ctx.createLinearGradient(0,0,0,GROUND);
+  if(recess){
+    skyGrad.addColorStop(0,'#ff9a3c');
+    skyGrad.addColorStop(1,'#ffe97a');
+  } else {
+    skyGrad.addColorStop(0,'#bfeaff');
+    skyGrad.addColorStop(1,'#eaf7d6');
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0,0,W,GROUND);
+  // suelo
+  ctx.fillStyle = recess ? '#4db830' : '#7ec850';
   ctx.fillRect(0,GROUND,W,H-GROUND);
-  ctx.fillStyle='#caa15a';
+  ctx.fillStyle = recess ? '#b8893a' : '#caa15a';
   ctx.fillRect(0,GROUND+16,W,H);
-  // hoyos
-  ctx.fillStyle='#bfeaff';
+  // hoyos (color del cielo activo)
+  const gapCol = recess ? '#ffe97a' : '#bfeaff';
+  ctx.fillStyle = gapCol;
   for(const g of level.gaps){
     ctx.fillRect(g.x, GROUND, g.w, H);
   }
   // nubes
-  ctx.fillStyle='rgba(255,255,255,.85)';
+  ctx.fillStyle = recess ? 'rgba(255,255,200,.75)' : 'rgba(255,255,255,.85)';
   cloud(120,60); cloud(600,40); cloud(420,90);
 }
 function cloud(x,y){
