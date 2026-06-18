@@ -464,7 +464,7 @@ function update(){
     teacher.dir = bcx < tcx ? -1 : 1;
     teacher.x += teacher.dir * level.recess.chaseSpeed;
     teacher.x = Math.max(-10, Math.min(W-30, teacher.x));
-    if(Math.abs(bcx-(teacher.x+20)) < 30){
+    if(Math.abs(bcx-(teacher.x+20)) < 30 && boy.y > GROUND-84){
       caught("¡El maestro te alcanzó! 🏃","Te atrapó en el recreo. ¡Corre más rápido y esquiva a los niños!");
     }
   } else if(level.patrol){
