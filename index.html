@@ -263,6 +263,7 @@ function loadLevel(i){
   game.recessOn = false;
   game.bellFlash = 0;
   game.children = [];
+  game.graceTime = 120;
   // copias de trabajo de los obstáculos (no mutar la definición original)
   game.balls  = (level.balls  || []).map(b=>{ const r=b.r||14; const dir=Math.random()<0.5?-1:1; return { x:r + Math.random()*(W-2*r), y:GROUND, r, speed:b.speed||2, dir }; });
   game.planes = (level.planes || []).map(p=>{ const dir=p.dir||1; return { x:Math.random()*W, y:GROUND-46, speed:p.speed||3, dir }; });
@@ -497,8 +498,11 @@ function update(){
     boy.onGround=false;
   }
 
+  const grace = game.graceTime > 0;
+  if(grace) game.graceTime--;
+
   // Maestro sentado y despierto: si te mueves cerca sin agacharte, te ve
-  if(!game.recessOn && !level.patrol && teacher.awake && !boy.crouch && Math.abs(boy.vx)>0){
+  if(!grace && !game.recessOn && !level.patrol && teacher.awake && !boy.crouch && Math.abs(boy.vx)>0){
     if(Math.abs((boy.x+boy.w/2)-(teacher.x+30)) < 150) caught();
   }
 
@@ -507,7 +511,7 @@ function update(){
     b.x += b.dir*b.speed;
     if(b.x < b.r){ b.x=b.r; b.dir=1; }
     if(b.x > W-b.r){ b.x=W-b.r; b.dir=-1; }
-    if(Math.abs(bcx-b.x) < boy.w/2+b.r && boy.y > GROUND-2*b.r-2){
+    if(!grace && Math.abs(bcx-b.x) < boy.w/2+b.r && boy.y > GROUND-2*b.r-2){
       caught("¡La pelota te golpeó! ⚽","Salta (▲) por encima de las pelotas que ruedan.");
     }
   }
@@ -517,7 +521,7 @@ function update(){
     p.x += p.dir*p.speed;
     if(p.dir>0 && p.x > W+50) p.x = -50;
     if(p.dir<0 && p.x < -50) p.x = W+50;
-    if(Math.abs(bcx-p.x) < boy.w/2+20 && !boy.crouch){
+    if(!grace && Math.abs(bcx-p.x) < boy.w/2+20 && !boy.crouch){
       caught("¡Un avión de papel! ✈️","Agáchate (▼) para pasar por debajo de los aviones.");
     }
   }
@@ -529,7 +533,7 @@ function update(){
       if(k.x < k.w){ k.x=k.w; k.dir=1; }
       if(k.x > W-k.w){ k.x=W-k.w; k.dir=-1; }
       k.walk += 0.3;
-      if(Math.abs(bcx-k.x) < boy.w/2+k.w/2 && boy.y > GROUND-30){
+      if(!grace && Math.abs(bcx-k.x) < boy.w/2+k.w/2 && boy.y > GROUND-30){
         caught("¡Chocaste con un niño! 💥","Salta (▲) por encima de los niños que corren al recreo.");
       }
     }
