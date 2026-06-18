@@ -470,7 +470,7 @@ function showCard(title,text,btn,cb,countdown){
   canvas.classList.add('blurred');
   card.innerHTML = `<h1>${title}</h1><p>${text}</p><button id="cardBtn">${btn}${countdown?' ('+countdown+')':''}</button>`;
   const btnEl = card.querySelector('#cardBtn');
-  const trigger = ()=>{ clearInterval(showCard._timer); overlay.classList.remove('active','hidden'); canvas.classList.remove('blurred'); cb(); };
+  const trigger = ()=>{ clearInterval(showCard._timer); overlay.classList.remove('active'); overlay.classList.add('hidden'); canvas.classList.remove('blurred'); cb(); };
   btnEl.onclick = trigger;
   clearInterval(showCard._timer);
   if(countdown){
@@ -482,7 +482,7 @@ function showCard(title,text,btn,cb,countdown){
     }, 1000);
   }
 }
-function start(){ overlay.classList.remove('active','hidden'); canvas.classList.remove('blurred'); game.state='playing'; }
+function start(){ overlay.classList.remove('active'); overlay.classList.add('hidden'); canvas.classList.remove('blurred'); game.state='playing'; }
 document.getElementById('startBtn').onclick = ()=>{ unlockAudio(); loadLevel(0); flash(LEVELS[0].msg); start(); };
 
 // ---------- Física y lógica ----------
