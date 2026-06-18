@@ -461,7 +461,7 @@ function update(){
     // Persigue a Eric
     teacher.walk += 0.35;
     const tcx = teacher.x + 20;
-    teacher.dir = bcx < tcx ? -1 : 1;
+    if(boy.onGround) teacher.dir = bcx < tcx ? -1 : 1;
     teacher.x += teacher.dir * level.recess.chaseSpeed;
     teacher.x = Math.max(-10, Math.min(W-30, teacher.x));
     if(Math.abs(bcx-(teacher.x+20)) < 30 && boy.y > GROUND-84){
