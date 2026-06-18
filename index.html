@@ -453,7 +453,7 @@ function levelComplete(){
   stopRecessMusic();
   if(game.level < LEVELS.length-1){
     game.state='levelclear';
-    showCard("¡Nivel superado! ⭐", "Manchitas mueve la colita feliz. ¿Listo para el siguiente nivel?", "Siguiente nivel", ()=>{ loadLevel(game.level+1); flash(LEVELS[game.level].msg); start(); });
+    showCard("¡Nivel superado! ⭐", "Manchitas mueve la colita feliz. ¿Listo para el siguiente nivel?", "Siguiente nivel", ()=>{ loadLevel(game.level+1); flash(LEVELS[game.level].msg); start(); }, 3);
   } else {
     game.state='win';
     winSound();
