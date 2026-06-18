@@ -326,7 +326,7 @@ document.addEventListener('keyup',e=>{
 
 function tryJump(){
   if(game.state==='playing' && boy.onGround && !boy.crouch){
-    boy.vy = -11.5; boy.onGround=false;
+    boy.vy = game.recessOn ? -14 : -11.5; boy.onGround=false;
   }
 }
 function tryGrab(){
