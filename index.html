@@ -336,6 +336,7 @@ function tryFree(){
   if(!game.hasKeys){ flash("¡Primero necesitas las llaves!"); return; }
   if(Math.abs((boy.x+boy.w/2)-cageCenter) < 70){
     game.freed = true;
+    game.state = 'freeing';
     flash("¡Manchitas es libre! 🐶❤️");
     setTimeout(()=> levelComplete(), 1400);
   }
