@@ -412,7 +412,7 @@ function caught(title,text){
   oopsSound();
   showCard(title || "¡Te atraparon! 😮",
            text  || "El maestro te vio. Recuerda agacharte (▼) cuando despierte.",
-           "Reintentar", ()=>{ loadLevel(game.level); start(); });
+           "Reintentar", ()=>{ loadLevel(game.level); start(); }, 3);
 }
 function levelComplete(){
   if(game.level < LEVELS.length-1){
@@ -428,10 +428,21 @@ function levelComplete(){
 // ---------- Overlay / tarjetas ----------
 const overlay=document.getElementById('overlay');
 const card=document.getElementById('card');
-function showCard(title,text,btn,cb){
+function showCard(title,text,btn,cb,countdown){
   overlay.classList.remove('hidden');
-  card.innerHTML = `<h1>${title}</h1><p>${text}</p><button>${btn}</button>`;
-  card.querySelector('button').onclick = ()=>{ overlay.classList.add('hidden'); cb(); };
+  card.innerHTML = `<h1>${title}</h1><p>${text}</p><button id="cardBtn">${btn}${countdown?' ('+countdown+')':''}</button>`;
+  const btnEl = card.querySelector('#cardBtn');
+  const trigger = ()=>{ clearInterval(showCard._timer); overlay.classList.add('hidden'); cb(); };
+  btnEl.onclick = trigger;
+  clearInterval(showCard._timer);
+  if(countdown){
+    let secs = countdown;
+    showCard._timer = setInterval(()=>{
+      secs--;
+      if(secs <= 0){ clearInterval(showCard._timer); trigger(); }
+      else { btnEl.textContent = btn+' ('+secs+')'; }
+    }, 1000);
+  }
 }
 function start(){ overlay.classList.add('hidden'); game.state='playing'; }
 document.getElementById('startBtn').onclick = ()=>{ unlockAudio(); loadLevel(0); flash(LEVELS[0].msg); start(); };
@@ -511,7 +522,7 @@ function update(){
       // cae en el hoyo
       if(boy.y > H+40){
         game.state='caught'; oopsSound();
-        showCard("¡Ups! 🕳️","Caíste en el hoyo. Salta (▲) para cruzarlo.","Reintentar",()=>{ loadLevel(game.level); start(); });
+        showCard("¡Ups! 🕳️","Caíste en el hoyo. Salta (▲) para cruzarlo.","Reintentar",()=>{ loadLevel(game.level); start(); }, 3);
       }
     } else {
       boy.y = GROUND; boy.vy=0; boy.onGround=true;
