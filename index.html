@@ -297,6 +297,19 @@ document.querySelectorAll('.btn').forEach(b=>{
 
 document.addEventListener('keydown',e=>{
   if(e.repeat) return;
+  // Secret dev shortcuts: Ctrl+Shift+N = next level, Ctrl+Shift+G = go to level
+  if(e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='n'){
+    e.preventDefault();
+    const next = (game.level+1) % LEVELS.length;
+    loadLevel(next); flash(LEVELS[next].msg); start(); return;
+  }
+  if(e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='g'){
+    e.preventDefault();
+    const input = prompt(`Ir al nivel (1–${LEVELS.length}):`);
+    const n = parseInt(input,10)-1;
+    if(n>=0 && n<LEVELS.length){ loadLevel(n); flash(LEVELS[n].msg); start(); }
+    return;
+  }
   if(e.key==='ArrowRight') press('fwd',true);
   else if(e.key==='ArrowLeft') press('back',true);
   else if(e.key==='ArrowUp'||e.key===' ') press('jump',true);
