@@ -380,13 +380,13 @@ function update(){
 function drawGround(){
   // cielo ya está por css; suelo
   ctx.fillStyle='#7ec850';
-  ctx.fillRect(0,GROUND+18,W,H-GROUND);
+  ctx.fillRect(0,GROUND,W,H-GROUND);
   ctx.fillStyle='#caa15a';
-  ctx.fillRect(0,GROUND+34,W,H);
+  ctx.fillRect(0,GROUND+16,W,H);
   // hoyos
   ctx.fillStyle='#bfeaff';
   for(const g of level.gaps){
-    ctx.fillRect(g.x, GROUND+18, g.w, H);
+    ctx.fillRect(g.x, GROUND, g.w, H);
   }
   // nubes
   ctx.fillStyle='rgba(255,255,255,.85)';
