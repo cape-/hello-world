@@ -372,10 +372,16 @@ function startRecess(){
   const n  = level.recess.kids || 4;
   const sp = level.recess.kidSpeed || 3.2;
   game.children = [];
+  const CLEAR = 160; // minimum distance from player at spawn
   for(let i=0;i<n;i++){
+    let x, attempts=0;
+    do {
+      x = 40 + Math.random()*(W-80);
+      attempts++;
+    } while(Math.abs(x - (boy.x + boy.w/2)) < CLEAR && attempts < 30);
     game.children.push({
-      x: 220 + Math.random()*(W-320),
-      dir: Math.random()<0.5 ? -1 : 1,
+      x,
+      dir: x < boy.x + boy.w/2 ? -1 : 1,
       speed: sp*(0.8+Math.random()*0.5),
       w: 22, h: 36, walk: Math.random()*6,
       color: KID_COLORS[i % KID_COLORS.length],
