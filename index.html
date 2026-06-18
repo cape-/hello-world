@@ -263,9 +263,10 @@ function loadLevel(i){
   game.recessOn = false;
   game.bellFlash = 0;
   game.children = [];
+  game.graceTime = 120;
   // copias de trabajo de los obstáculos (no mutar la definición original)
-  game.balls  = (level.balls  || []).map(b=>({ x:b.x, y:GROUND, r:b.r||14, speed:b.speed||2, dir:1 }));
-  game.planes = (level.planes || []).map(p=>({ x:(p.x!=null?p.x:-40), y:GROUND-46, speed:p.speed||3, dir:p.dir||1 }));
+  game.balls  = (level.balls  || []).map(b=>{ const r=b.r||14; const dir=Math.random()<0.5?-1:1; return { x:r + Math.random()*(W-2*r), y:GROUND, r, speed:b.speed||2, dir }; });
+  game.planes = (level.planes || []).map(p=>{ const dir=p.dir||1; return { x:Math.random()*W, y:GROUND-46, speed:p.speed||3, dir }; });
   boy.x = 60; boy.y = GROUND; boy.vx=0; boy.vy=0; boy.onGround=true; boy.crouch=false; boy.dir=1;
   const startX = level.patrol ? level.patrol.min : level.teacherX;
   teacher = { x:startX, awake:false, blink:0, dir:1, looking:false, walk:0, mode: level.patrol?'patrol':'seated' };
@@ -296,6 +297,19 @@ document.querySelectorAll('.btn').forEach(b=>{
 
 document.addEventListener('keydown',e=>{
   if(e.repeat) return;
+  // Secret dev shortcuts: Ctrl+Shift+N = next level, Ctrl+Shift+G = go to level
+  if(e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='n'){
+    e.preventDefault();
+    const next = (game.level+1) % LEVELS.length;
+    loadLevel(next); flash(LEVELS[next].msg); start(); return;
+  }
+  if(e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='g'){
+    e.preventDefault();
+    const input = prompt(`Ir al nivel (1–${LEVELS.length}):`);
+    const n = parseInt(input,10)-1;
+    if(n>=0 && n<LEVELS.length){ loadLevel(n); flash(LEVELS[n].msg); start(); }
+    return;
+  }
   if(e.key==='ArrowRight') press('fwd',true);
   else if(e.key==='ArrowLeft') press('back',true);
   else if(e.key==='ArrowUp'||e.key===' ') press('jump',true);
@@ -312,7 +326,7 @@ document.addEventListener('keyup',e=>{
 
 function tryJump(){
   if(game.state==='playing' && boy.onGround && !boy.crouch){
-    boy.vy = -11.5; boy.onGround=false;
+    boy.vy = game.recessOn ? -14 : -11.5; boy.onGround=false;
   }
 }
 function tryGrab(){
@@ -336,6 +350,7 @@ function tryFree(){
   if(!game.hasKeys){ flash("¡Primero necesitas las llaves!"); return; }
   if(Math.abs((boy.x+boy.w/2)-cageCenter) < 70){
     game.freed = true;
+    game.state = 'freeing';
     flash("¡Manchitas es libre! 🐶❤️");
     setTimeout(()=> levelComplete(), 1400);
   }
@@ -367,13 +382,22 @@ function startRecess(){
   game.bellFlash = 180;
   teacher.mode = 'chase';
   teacher.walk = 0;
+  // Place teacher at the opposite end of the canvas so player has time to run
+  teacher.x = (boy.x + boy.w/2) < W/2 ? W - 60 : 10;
+  teacher.dir = teacher.x > boy.x ? -1 : 1;
   const n  = level.recess.kids || 4;
   const sp = level.recess.kidSpeed || 3.2;
   game.children = [];
+  const CLEAR = 160; // minimum distance from player at spawn
   for(let i=0;i<n;i++){
+    let x, attempts=0;
+    do {
+      x = 40 + Math.random()*(W-80);
+      attempts++;
+    } while(Math.abs(x - (boy.x + boy.w/2)) < CLEAR && attempts < 30);
     game.children.push({
-      x: 220 + Math.random()*(W-320),
-      dir: Math.random()<0.5 ? -1 : 1,
+      x,
+      dir: x < boy.x + boy.w/2 ? -1 : 1,
       speed: sp*(0.8+Math.random()*0.5),
       w: 22, h: 36, walk: Math.random()*6,
       color: KID_COLORS[i % KID_COLORS.length],
@@ -437,10 +461,10 @@ function update(){
     // Persigue a Eric
     teacher.walk += 0.35;
     const tcx = teacher.x + 20;
-    teacher.dir = bcx < tcx ? -1 : 1;
+    if(boy.onGround) teacher.dir = bcx < tcx ? -1 : 1;
     teacher.x += teacher.dir * level.recess.chaseSpeed;
     teacher.x = Math.max(-10, Math.min(W-30, teacher.x));
-    if(Math.abs(bcx-(teacher.x+20)) < 30){
+    if(Math.abs(bcx-(teacher.x+20)) < 30 && boy.y > GROUND-84){
       caught("¡El maestro te alcanzó! 🏃","Te atrapó en el recreo. ¡Corre más rápido y esquiva a los niños!");
     }
   } else if(level.patrol){
@@ -496,8 +520,11 @@ function update(){
     boy.onGround=false;
   }
 
+  const grace = game.graceTime > 0;
+  if(grace) game.graceTime--;
+
   // Maestro sentado y despierto: si te mueves cerca sin agacharte, te ve
-  if(!game.recessOn && !level.patrol && teacher.awake && !boy.crouch && Math.abs(boy.vx)>0){
+  if(!grace && !game.recessOn && !level.patrol && teacher.awake && !boy.crouch && Math.abs(boy.vx)>0){
     if(Math.abs((boy.x+boy.w/2)-(teacher.x+30)) < 150) caught();
   }
 
@@ -506,7 +533,7 @@ function update(){
     b.x += b.dir*b.speed;
     if(b.x < b.r){ b.x=b.r; b.dir=1; }
     if(b.x > W-b.r){ b.x=W-b.r; b.dir=-1; }
-    if(Math.abs(bcx-b.x) < boy.w/2+b.r && boy.y > GROUND-2*b.r-2){
+    if(!grace && Math.abs(bcx-b.x) < boy.w/2+b.r && boy.y > GROUND-2*b.r-2){
       caught("¡La pelota te golpeó! ⚽","Salta (▲) por encima de las pelotas que ruedan.");
     }
   }
@@ -516,7 +543,7 @@ function update(){
     p.x += p.dir*p.speed;
     if(p.dir>0 && p.x > W+50) p.x = -50;
     if(p.dir<0 && p.x < -50) p.x = W+50;
-    if(Math.abs(bcx-p.x) < boy.w/2+20 && !boy.crouch){
+    if(!grace && Math.abs(bcx-p.x) < boy.w/2+20 && !boy.crouch){
       caught("¡Un avión de papel! ✈️","Agáchate (▼) para pasar por debajo de los aviones.");
     }
   }
@@ -528,7 +555,7 @@ function update(){
       if(k.x < k.w){ k.x=k.w; k.dir=1; }
       if(k.x > W-k.w){ k.x=W-k.w; k.dir=-1; }
       k.walk += 0.3;
-      if(Math.abs(bcx-k.x) < boy.w/2+k.w/2 && boy.y > GROUND-30){
+      if(!grace && Math.abs(bcx-k.x) < boy.w/2+k.w/2 && boy.y > GROUND-30){
         caught("¡Chocaste con un niño! 💥","Salta (▲) por encima de los niños que corren al recreo.");
       }
     }
@@ -760,7 +787,7 @@ function drawTeacherWalk(tx,y,dir,chasing){
     ctx.fillStyle='#7a2a2a';
     ctx.beginPath(); ctx.arc(cx, y-56, 3, 0, 7); ctx.fill();
     ctx.fillStyle='#e0552b'; ctx.font='bold 16px "Comic Sans MS",sans-serif'; ctx.textAlign='center';
-    ctx.fillText('¡Oye!', cx, y-86);
+    ctx.fillText('¡Oye!', cx, y-106);
   } else if(teacher.looking){
     ctx.fillStyle='#e0552b'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center';
     ctx.fillText('!', cx, y-86);
