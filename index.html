@@ -264,8 +264,8 @@ function loadLevel(i){
   game.bellFlash = 0;
   game.children = [];
   // copias de trabajo de los obstáculos (no mutar la definición original)
-  game.balls  = (level.balls  || []).map(b=>({ x:b.x, y:GROUND, r:b.r||14, speed:b.speed||2, dir:1 }));
-  game.planes = (level.planes || []).map(p=>({ x:(p.x!=null?p.x:-40), y:GROUND-46, speed:p.speed||3, dir:p.dir||1 }));
+  game.balls  = (level.balls  || []).map(b=>{ const r=b.r||14; const dir=Math.random()<0.5?-1:1; return { x:r + Math.random()*(W-2*r), y:GROUND, r, speed:b.speed||2, dir }; });
+  game.planes = (level.planes || []).map(p=>{ const dir=p.dir||1; return { x:Math.random()*W, y:GROUND-46, speed:p.speed||3, dir }; });
   boy.x = 60; boy.y = GROUND; boy.vx=0; boy.vy=0; boy.onGround=true; boy.crouch=false; boy.dir=1;
   const startX = level.patrol ? level.patrol.min : level.teacherX;
   teacher = { x:startX, awake:false, blink:0, dir:1, looking:false, walk:0, mode: level.patrol?'patrol':'seated' };
